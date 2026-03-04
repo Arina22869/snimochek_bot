@@ -7,6 +7,8 @@ from aiogram.filters import Command
 from aiogram.types import Message, InlineKeyboardButton, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 import asyncio
+import json
+import traceback
 
 # ============= Google Sheets API =============
 import gspread
@@ -45,17 +47,39 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-# ============= Google Sheets подключение =============
+# ============= ВШИТЫЙ КЛЮЧ (НОВЫЙ) =============
+KEY_JSON = '''{
+  "type": "service_account",
+  "project_id": "snimk-489208",
+  "private_key_id": "a8ea7f1b203f733aed6a5d28e5a4df8d447bc1ee",
+  "private_key": "-----BEGIN PRIVATE KEY-----\\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDo+F6ebOWUslrW\\nS3Mf6oIZL5fNZMYzMR2RagMORtid9LMcxPL55eT/DOhIDsd5WTZCHuyF/ppjZUAX\\nn6xEBG0LgvNs0pC3Tc1oRZ3EnnSX8zIqRIw+/2m7g3/2Mk9QmWZTQmcrY4SyCjZi\\nDsogM78ZjxBIiqPU0dgqA2JDSOVuNpz1wWKWQ/oliz9o2exPspdt+LAiE4j6SZHX\\nD7L56+AtsaZiOWAnJsDIdC/s+t5aSBwviTLrMCPVZrFBkjzz0palBmcL0rRTpzyS\\n03Gswz7QEiAp/qgszdbpZIufMDJdDn9NUvrICvWHx0vApDZVZyQuNWKeIkkDyVTG\\nN1Zny4LtAgMBAAECggEAKYzWj0nbvmP6+HpXa4tPLb/DwsGk6c9qNxuhtOOk0bMp\\nWMm1jiVW7Lg4G1XrdLSZDTznsVRB49VUk4IKXs0tR57Q3IlHfzHUnzK/Wyhpogoh\\nWdGE891o1aUz5sx9QeJCEjpnHSFwMrLIlT+PBCRGgn/2BwIXCydr9r5IwbhYFwo2\\nV2oVf46lKfKutGE5vcI3vQy6OTlEzdR+pPzWnQFPVBbcm7ZFMRU4UNYiB+H2k0Qg\\na65KYtg34cL8VWHW6B8JwYm9N1DGlYL/Vy/AJjZk12x9abGqW4d30rYIFsUBlpXU\\nv7+wGRoMindb1n0YovLY70Vg7esXiZIKHuJcF97BgQKBgQD8EBU6/9Lf09zi/83R\\n61G3NXVTeCVGGoVGr4UWAyq1b23MPC7hWtCqGi6GwbmfEFKoxKzGGTWyX03Atb7z\\nV0MYeWjZB2PV2Uj07ISFfkBcLbxjOn5JBcx0RiOXRjeoPC9HinLczWyG0m0p5UX/\\nKjF8xLOMmJPsc5iGHrvmiqtRrQKBgQDsm/EEGoHGt7QQJYwYT9A/NtluKhnB+rt9\\nVP/JMrk7LsrtduT385u3hBF+VBzptpk9aWDGz+JmpGltSosEGIxXd9WE+Hxc4Ns2\\nHPh6wLHBDTVygkwJOiErC/3cy+NMQO1WUtOuIXg159O/JgWhclYVDOCXDusuw0wG\\n7si9d8+eQQKBgQDpRFEBesLCVST0BluJS0ciT5y2lFeaWuzAD6sQRfn+UpLAEWop\\nL4wv/27TUvDfXZHBkdF6utXQrxYbo5aFSFpVifYX8xjXTPCRiVjS2ZXiOIlBI16/\\nYVhmuooxctALJzdx85R89rbaxl40CXQPwhJuLvMiyAkNJ6Udac/meKo3OQKBgAyG\\nMJrEAGyRWsGkCydaSi6ea6HuLpDbAcOflS6ENdPRJUKukW4igfKT1g02zJT+alwa\\n0NmVNWmzeDUlxfgAiKU0naO9N2//IvtZSznMK1yJo3OdPAMdBZZuuxBN5okpwqZY\\nGgZUlTVdQRMUIyYplC7nEJhOXNqL0eFoEE4fImlBAoGAZVAWas0/FEEy1JQHVKuJ\\n8DzTUcSQdImO1HSVKHFUmBW0ZcCSLLz/xnB7L3QcDHNBBdiFeXfubtrRE2LXiqpy\\nFiL/vTZp9tq3hwfjawXSAwkTZgeNJ43zaS/L4HJ+eCBlC0r4ZvzScqc71nXb3xfj\\n6B2CVecxeLkDRgnDq2krLgI=\\n-----END PRIVATE KEY-----\\n",
+  "client_email": "snimk-386@snimk-489208.iam.gserviceaccount.com",
+  "client_id": "115514717748293156637",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/snimk-386%40snimk-489208.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}'''
+
 def get_gs_client():
     try:
-        creds = Credentials.from_service_account_file(
-            'google_key.json',
-            scopes=["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        creds_dict = json.loads(KEY_JSON)
+        # Используем правильные scopes для Sheets и Drive
+        creds = Credentials.from_service_account_info(
+            creds_dict,
+            scopes=[
+                "https://www.googleapis.com/auth/spreadsheets",
+                "https://www.googleapis.com/auth/drive",
+                "https://spreadsheets.google.com/feeds"
+            ]
         )
         client = gspread.authorize(creds)
+        logging.info("✅ Успешное подключение к Google Sheets")
         return client
     except Exception as e:
         logging.error(f"❌ Ошибка подключения к Google Sheets: {e}")
+        traceback.print_exc()
         return None
 
 def get_users_sheet():
@@ -63,18 +87,24 @@ def get_users_sheet():
     if not client:
         return None
     try:
-        return client.open_by_key(SPREADSHEET_ID).worksheet("users")
+        # Пробуем открыть таблицу и лист
+        sheet = client.open_by_key(SPREADSHEET_ID)
+        worksheet = sheet.worksheet("users")
+        logging.info(f"✅ Лист 'users' найден, строк: {len(worksheet.get_all_values())}")
+        return worksheet
+    except gspread.WorksheetNotFound:
+        logging.error(f"❌ Лист 'users' не найден в таблице")
+        return None
     except Exception as e:
         logging.error(f"❌ Ошибка получения листа users: {e}")
+        traceback.print_exc()
         return None
 
 # ============= Работа с пользователями =============
 def get_user_row(user_id):
-    """Возвращает номер строки пользователя или None"""
     sheet = get_users_sheet()
     if not sheet:
         return None
-    
     try:
         all_rows = sheet.get_all_values()
         user_id_str = str(user_id)
@@ -87,15 +117,13 @@ def get_user_row(user_id):
         return None
 
 def get_user_snimochki(user_id):
-    """Читает снимочки из таблицы"""
     sheet = get_users_sheet()
     if not sheet:
         return 0
-    
     try:
         row_num = get_user_row(user_id)
         if row_num:
-            val = sheet.cell(row_num, 4).value  # колонка D
+            val = sheet.cell(row_num, 4).value
             return int(val) if val and val.lstrip('-').isdigit() else 0
         return 0
     except Exception as e:
@@ -103,23 +131,23 @@ def get_user_snimochki(user_id):
         return 0
 
 def update_user_snimochki(user_id, new_value):
-    """Обновляет снимочки пользователя"""
     sheet = get_users_sheet()
     if not sheet:
         return False
-    
     try:
         row_num = get_user_row(user_id)
         if row_num:
             sheet.update_cell(row_num, 4, str(new_value))
+            logging.info(f"✅ Снимочки пользователя {user_id} обновлены: {new_value}")
             return True
         else:
-            # Если пользователя нет в таблице — создаём
-            name = f"User{user_id}"  # временное имя
+            name = f"User{user_id}"
             sheet.append_row([str(user_id), name, "0", str(new_value), ""])
+            logging.info(f"✅ Новый пользователь {user_id} создан со снимочками {new_value}")
             return True
     except Exception as e:
         logging.error(f"Ошибка обновления снимочков: {e}")
+        traceback.print_exc()
         return False
 
 # ============= SQLite (инвентарь) =============
@@ -188,11 +216,10 @@ def has_item(user_id, item_name):
     return item_name in items_dict and items_dict[item_name] > 0
 
 def get_item_emoji(item_name):
-    """Возвращает эмодзи для предмета"""
     for key, emoji in ITEM_EMOJIS.items():
         if key in item_name.lower():
             return emoji
-    return "📦"  # эмодзи по умолчанию
+    return "📦"
 
 # ============= Игровая логика =============
 def open_chest():
@@ -378,10 +405,8 @@ async def open_chest_callback(callback: CallbackQuery):
     
     item = open_chest()
     if item:
-        # Списываем 5 снимочков
         update_user_snimochki(user_id, snimochki - 5)
         add_to_inventory(user_id, item["name"])
-        
         emoji = get_item_emoji(item["name"])
         
         await callback.message.edit_text(
@@ -414,7 +439,6 @@ async def spin_callback(callback: CallbackQuery):
     new_snimochki = snimochki
     reward_text = ""
     
-    # Обработка результата
     if result["type"] == "snimochki":
         new_snimochki += result["value"]
         emoji = get_item_emoji("снимочки")
@@ -430,7 +454,6 @@ async def spin_callback(callback: CallbackQuery):
     else:
         reward_text = "😢 В этот раз не повезло. Попробуй ещё!"
     
-    # Списываем ресурсы
     if has_freespin:
         remove_from_inventory(user_id, "один фриспин")
         cost_text = "🎰 Использован фриспин!"
@@ -438,7 +461,6 @@ async def spin_callback(callback: CallbackQuery):
         new_snimochki -= 3
         cost_text = "🪙 Потрачено 3 снимочка"
     
-    # Обновляем баланс в таблице
     update_user_snimochki(user_id, new_snimochki)
     
     await callback.message.edit_text(
